@@ -20,7 +20,7 @@ const { values, positionals } = parseArgs({
 });
 
 function printHelp() {
-    console.log(`Usage: bun index.ts [command] [options]
+    console.log(`Usage: flydo [command] [options]
 
 Commands:
   login                    Issue a deploy token
@@ -28,7 +28,11 @@ Commands:
   run <file> [args...]     Run a particular file remotely
 
 Options:
-  --help, -h      Show this help message`);
+  --help, -h               Show this help message
+
+Environment variables:
+  FLYDO_STATE_FILE         The file where the CLI state is stored
+`);
 }
 
 if (values.help) {
