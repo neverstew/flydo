@@ -1,6 +1,34 @@
 import { $ } from "bun";
 import { parseArgs } from "util";
 
+const DEPLOY_HASH_FILE = ".flydo-hash";
+
+async function computeDirHash(): Promise<string> {
+    const hasher = new Bun.CryptoHasher("sha256");
+    const files: string[] = [];
+    for await (const file of new Bun.Glob("**/*").scan({ dot: true, onlyFiles: true })) {
+        if (file.startsWith(".git/") || file.startsWith("node_modules/") || file === DEPLOY_HASH_FILE) continue;
+        files.push(file);
+    }
+    files.sort();
+    for (const file of files) {
+        hasher.update(file);
+        hasher.update(await Bun.file(file).bytes());
+    }
+    return hasher.digest("hex");
+}
+
+async function hasChanges(): Promise<boolean> {
+    const hashFile = Bun.file(DEPLOY_HASH_FILE);
+    if (!(await hashFile.exists())) return true;
+    const [current, previous] = await Promise.all([computeDirHash(), hashFile.text()]);
+    return current !== previous.trim();
+}
+
+async function saveDeployHash(): Promise<void> {
+    await Bun.write(DEPLOY_HASH_FILE, await computeDirHash());
+}
+
 let currentProcess: ReturnType<typeof Bun.spawn> | undefined;
 process.on("SIGINT", () => {
     if (currentProcess) {
@@ -78,13 +106,18 @@ switch (command) {
             process.exit(2);
         }
 
-        console.log(`Deploying function...`);
-        try {
-            await $`podman build -t flydo:latest --platform=linux/amd64 .`.quiet();
-            await $`podman push flydo:latest registry.fly.io/flydo:latest`.quiet();
-        } catch (err) {
-            console.error('Unable to deploy to fly');
-            process.exit(2);
+        if (await hasChanges()) {
+            console.log(`Changes detected. Deploying new function...`);
+            try {
+                await $`podman build -t flydo:latest --platform=linux/amd64 .`.quiet();
+                await $`podman push flydo:latest registry.fly.io/flydo:latest`.quiet();
+                await saveDeployHash();
+            } catch (err) {
+                console.error('Unable to deploy to fly');
+                process.exit(2);
+            }
+        } else {
+            console.log("No changes detected, skipping deploy.");
         }
 
         console.log(`Running function... `);
