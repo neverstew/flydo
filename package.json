@@ -3,6 +3,9 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+      "compile": "bun build --compile index.ts --outfile flydo"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },

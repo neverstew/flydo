@@ -1,13 +1,24 @@
 import { $ } from "bun";
 import { parseArgs } from "util";
 
-const DEPLOY_HASH_FILE = ".flydo-hash";
+const STATE_FILE = ".flydo";
+
+async function readState(): Promise<Record<string, string>> {
+    const stateFile = Bun.file(STATE_FILE);
+    if (!(await stateFile.exists())) return {};
+    return JSON.parse(await stateFile.text());
+}
+
+async function writeState(updates: Record<string, string>): Promise<void> {
+    const current = await readState();
+    await Bun.write(STATE_FILE, JSON.stringify({ ...current, ...updates }, null, 2));
+}
 
 async function computeDirHash(): Promise<string> {
     const hasher = new Bun.CryptoHasher("sha256");
     const files: string[] = [];
     for await (const file of new Bun.Glob("**/*").scan({ dot: true, onlyFiles: true })) {
-        if (file.startsWith(".git/") || file.startsWith("node_modules/") || file === DEPLOY_HASH_FILE) continue;
+        if (file.startsWith(".git/") || file.startsWith("node_modules/") || file === STATE_FILE) continue;
         files.push(file);
     }
     files.sort();
@@ -19,14 +30,14 @@ async function computeDirHash(): Promise<string> {
 }
 
 async function hasChanges(): Promise<boolean> {
-    const hashFile = Bun.file(DEPLOY_HASH_FILE);
-    if (!(await hashFile.exists())) return true;
-    const [current, previous] = await Promise.all([computeDirHash(), hashFile.text()]);
-    return current !== previous.trim();
+    const state = await readState();
+    if (!state.hash) return true;
+    const current = await computeDirHash();
+    return current !== state.hash;
 }
 
 async function saveDeployHash(): Promise<void> {
-    await Bun.write(DEPLOY_HASH_FILE, await computeDirHash());
+    await writeState({ hash: await computeDirHash() });
 }
 
 let currentProcess: ReturnType<typeof Bun.spawn> | undefined;
@@ -65,6 +76,13 @@ if (values.help) {
 }
 
 const [, , command, ...rest] = positionals;
+
+try {
+    await $`fly config validate`.quiet();
+} catch (err) {
+    console.error("Could not detect a valid fly config file");
+    process.exit(99);
+}
 
 switch (command) {
     case "session": {
