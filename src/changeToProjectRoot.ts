@@ -1,13 +1,17 @@
 import { $ } from "bun";
 
-export async function changeToProjectRoot() {
+export async function gitProjectRoot() {
     try {
-        const gitRoot = (await $`git rev-parse --show-toplevel`.quiet().text()).trim();
-        process.chdir(gitRoot);
-        return gitRoot;
+        return (await $`git rev-parse --show-toplevel`.quiet().text()).trim();
     } catch {
         console.error("Not in a git repository");
         process.exit(1);
     }
+}
+
+export async function changeToProjectRoot() {
+    const gitRoot = await gitProjectRoot();
+    process.chdir(gitRoot);
+    return gitRoot;
 }
 

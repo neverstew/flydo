@@ -1,9 +1,12 @@
-export const STATE_FILE = process.env.FLYDO_STATE_FILE || ".flydo";
+import { resolve } from "path";
+import { gitProjectRoot } from "./changeToProjectRoot";
+
+export const STATE_FILE = resolve(await gitProjectRoot(), process.env.FLYDO_STATE_FILE || ".flydo");
 
 export async function readState(): Promise<Record<string, string>> {
     const stateFile = Bun.file(STATE_FILE);
     if (!(await stateFile.exists())) return {};
-    return JSON.parse(await stateFile.text());
+    return await stateFile.json();
 }
 
 export async function writeState(updates: Record<string, string | null | undefined>): Promise<void> {
@@ -13,3 +16,9 @@ export async function writeState(updates: Record<string, string | null | undefin
 }
 
 
+export const flyConfigFile = async () => (await readState()).flyConfigFile || 'fly.toml';
+export const flyConfig = async () => {
+    const configPath = await flyConfigFile();
+    const data = Bun.TOML.parse(await Bun.file(configPath).text());
+    return data as { app: string };
+}

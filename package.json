@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-      "compile": "bun build --compile src/index.ts --outfile flydo"
+      "compile": "bun build --compile src/index.ts --outfile dist/flydo"
   },
   "devDependencies": {
     "@types/bun": "latest"
