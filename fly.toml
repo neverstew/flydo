@@ -1,0 +1,12 @@
+# fly.toml app configuration file generated for flydo on 2026-02-14T10:53:50Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'flydo'
+primary_region = 'lhr'
+
+[[vm]]
+  memory = '512mb'
+  cpus = 1
+  memory_mb = 512
