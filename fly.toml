@@ -7,6 +7,6 @@ app = 'flydo'
 primary_region = 'lhr'
 
 [[vm]]
-  memory = '512mb'
+  memory = '2048mb'
   cpus = 1
-  memory_mb = 512
+  memory_mb = 2048

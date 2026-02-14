@@ -8,5 +8,8 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@duckdb/node-api": "^1.4.4-r.1"
   }
 }
