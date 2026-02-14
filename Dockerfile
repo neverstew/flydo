@@ -26,4 +26,4 @@ COPY . .
 ENV NODE_ENV=production
 
 USER bun
-CMD ["bun", "run", "index.ts"]
+CMD []

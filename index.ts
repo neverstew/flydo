@@ -1,5 +1,17 @@
 import { $ } from "bun";
 import { parseArgs } from "util";
+import { resolve, relative } from "path";
+
+const originalCwd = process.cwd();
+
+let gitRoot: string;
+try {
+    gitRoot = (await $`git rev-parse --show-toplevel`.quiet().text()).trim();
+} catch {
+    console.error("Not in a git repository");
+    process.exit(1);
+}
+process.chdir(gitRoot);
 
 const STATE_FILE = ".flydo";
 
@@ -62,9 +74,9 @@ function printHelp() {
     console.log(`Usage: bun index.ts [command] [options]
 
 Commands:
-  session start    Begin a session
-  session stop     End a session
-  run <file>       Run a particular file remotely
+  login                    Issue a deploy token
+  logout                   Revoke all deploy tokens
+  run <file> [args...]     Run a particular file remotely
 
 Options:
   --help, -h      Show this help message`);
@@ -85,44 +97,34 @@ try {
 }
 
 switch (command) {
-    case "session": {
-        const [subcommand] = rest;
-        switch (subcommand) {
-            case "start":
-                try {
-                    await $`fly tokens create deploy -x 24h | podman login -u x --password-stdin registry.fly.io`.quiet();
-                } catch (err) {
-                    console.error("Could not start session", err);
-                    process.exit(1);
-                }
-                console.log("Session started");
-                break;
-            case "stop":
-                try {
-                    await $`fly tokens list | awk 'NR>2{ print $1 }' | xargs fly tokens revoke`.quiet()
-                } catch (err) {
-                    console.error("Could not end session", err);
-                    process.exit(1);
-                }
-
-                console.log("Session stopped");
-                break;
-            default:
-                if (subcommand) {
-                    console.error(`Unknown subcommand: session ${subcommand}`);
-                    process.exit(1);
-                }
-                console.log("Usage: bun index.ts session <start|stop>");
+    case "login": {
+        try {
+            await $`fly tokens create deploy -x 24h | podman login -u x --password-stdin registry.fly.io`.quiet();
+        } catch (err) {
+            console.error("Could not start session", err);
+            process.exit(1);
         }
+        console.log("Session started");
+        break;
+    } case "logout": {
+        try {
+            await $`fly tokens list | awk 'NR>2{ print $1 }' | xargs fly tokens revoke`.quiet()
+        } catch (err) {
+            console.error("Could not end session", err);
+            process.exit(1);
+        }
+
+        console.log("Session stopped");
         break;
     }
-    case 'run': {
-        const [filename] = rest;
+    case "run": {
+        const [filename, ...args] = rest;
         if (!filename) {
             console.error('Unable to parse input for run command');
             printHelp();
             process.exit(2);
         }
+        const relFilePath = relative(gitRoot, resolve(originalCwd, filename));
 
         if (await hasChanges()) {
             console.log(`Changes detected. Deploying new function...`);
@@ -141,7 +143,7 @@ switch (command) {
         console.log(`Running function... `);
         currentProcess = Bun.spawn(["fly", "logs"], { stdout: "inherit", stderr: "inherit" });
         try {
-            await $`fly machine run registry.fly.io/flydo:latest --rm --entrypoint="bun run ${filename}"`.quiet();
+            await $`fly machine run registry.fly.io/flydo:latest --rm --entrypoint="bun run ${relFilePath} ${args}"`.quiet();
         } catch (err) {
             console.error('Unable to run on fly');
             process.exit(2);
