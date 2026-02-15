@@ -47,6 +47,8 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -57,3 +59,8 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+
+      - name: Update latest tag
+        run: |
+          git tag -f latest
+          git push -f origin latest
