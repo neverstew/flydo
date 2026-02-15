@@ -1,6 +1,6 @@
 import { $ } from "bun";
 import { flyConfig, flyConfigFile, readState, writeState } from "./state";
-import { deployHash, hasChanges, saveDeployHash } from "./changes";
+import { computeDirHash, hasChanges, saveDeployHash } from "./changes";
 import { getCurrentProcess, setCurrentProcess } from "./interruptions";
 import Dockerfile from '../Dockerfile' with { type: 'file' }
 import dockerignore from '../.dockerignore' with { type: 'file' }
@@ -77,7 +77,7 @@ export async function logout() {
 
 const appImage = async () => {
     const { app } = await flyConfig();
-    const hash = await deployHash();
+    const hash = await computeDirHash();
     return {
         app,
         localImage: `${app}-tasks:latest`,

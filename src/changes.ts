@@ -1,6 +1,6 @@
 import { STATE_FILE, readState, writeState } from "./state";
 
-async function computeDirHash(): Promise<string> {
+export async function computeDirHash(): Promise<string> {
     const hasher = new Bun.CryptoHasher("sha256");
     const files: string[] = [];
     const { workdir } = await readState();
@@ -27,7 +27,3 @@ export async function saveDeployHash(): Promise<void> {
     await writeState({ hash: await computeDirHash() });
 }
 
-export async function deployHash(): Promise<string | undefined> {
-    const { hash } = await readState();
-    return hash;
-}
