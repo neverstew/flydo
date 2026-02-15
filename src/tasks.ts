@@ -1,6 +1,6 @@
 import { $ } from "bun";
 import { flyConfig, flyConfigFile, readState, writeState } from "./state";
-import { hasChanges, saveDeployHash } from "./changes";
+import { deployHash, hasChanges, saveDeployHash } from "./changes";
 import { getCurrentProcess, setCurrentProcess } from "./interruptions";
 import Dockerfile from '../Dockerfile' with { type: 'file' }
 import dockerignore from '../.dockerignore' with { type: 'file' }
@@ -77,10 +77,11 @@ export async function logout() {
 
 const appImage = async () => {
     const { app } = await flyConfig();
+    const hash = await deployHash();
     return {
         app,
         localImage: `${app}-tasks:latest`,
-        remoteImage: `registry.fly.io/${app}:tasks`
+        remoteImage: `registry.fly.io/${app}:tasks-${hash!.slice(0, 8)}`
     }
 }
 
@@ -90,11 +91,11 @@ const missingMachineId = async () => {
 }
 
 export async function build() {
-    const { localImage, remoteImage } = await appImage();
-
     const changed = await hasChanges();
     if (changed) {
         console.log(`Changes detected. Deploying new function...`);
+        const { localImage, remoteImage } = await appImage();
+
         try {
             const { workdir } = await readState();
             process.chdir(workdir!);
@@ -105,6 +106,7 @@ export async function build() {
             console.error('Unable to deploy to fly');
             process.exit(2);
         }
+        console.info(`Pushed new image to ${remoteImage}`);
     } else {
         console.log("No changes detected, skipping deploy.");
     }
@@ -112,6 +114,7 @@ export async function build() {
     const needsMachine = await missingMachineId();
     if (needsMachine) {
         const configFile = await flyConfigFile()
+        const { remoteImage } = await appImage();
         try {
             const machineCreateResponse = await $`fly machine create ${remoteImage} -c ${configFile}`.quiet(isQuiet).text();
             const machineId = machineCreateResponse.match(/Machine ID: (?<id>.+)/)?.groups?.id!

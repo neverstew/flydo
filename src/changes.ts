@@ -27,4 +27,7 @@ export async function saveDeployHash(): Promise<void> {
     await writeState({ hash: await computeDirHash() });
 }
 
-
+export async function deployHash(): Promise<string | undefined> {
+    const { hash } = await readState();
+    return hash;
+}
