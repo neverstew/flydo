@@ -56,13 +56,21 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Update latest tag
+        run: |
+          git tag -f latest
+          git push -f origin latest
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
           generate_release_notes: true
 
-      - name: Update latest tag
-        run: |
-          git tag -f latest
-          git push -f origin latest
+      - name: Update latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest
+          files: dist/*
+          generate_release_notes: false
