@@ -7,7 +7,7 @@ import dockerignore from '../.dockerignore' with { type: 'file' }
 import tsconfig from '../tsconfig.json'
 import { existsSync } from "fs";
 import { mkdir } from "fs/promises";
-import { relative, resolve } from "path";
+import { resolve } from "path";
 import { isQuiet } from "./quiet";
 
 export async function validateFlyConfiguration() {
@@ -75,16 +75,31 @@ export async function logout() {
     }
 }
 
+const appImage = async () => {
+    const { app } = await flyConfig();
+    return {
+        app,
+        localImage: `${app}-tasks:latest`,
+        remoteImage: `registry.fly.io/${app}:tasks`
+    }
+}
+
+const missingMachineId = async () => {
+    const { machineId } = await readState();
+    return typeof machineId === 'undefined' || machineId === null;
+}
+
 export async function build() {
-    if (await hasChanges()) {
+    const { localImage, remoteImage } = await appImage();
+
+    const changed = await hasChanges();
+    if (changed) {
         console.log(`Changes detected. Deploying new function...`);
         try {
             const { workdir } = await readState();
-            const { app } = await flyConfig();
-            const imageName = `${app}-tasks:latest`
             process.chdir(workdir!);
-            await $`podman build -t ${imageName} --platform=linux/amd64 .`.quiet(isQuiet);
-            await $`podman push ${imageName} registry.fly.io/${app}:tasks`.quiet(isQuiet);
+            await $`podman build -t ${localImage} --platform=linux/amd64 .`.quiet(isQuiet);
+            await $`podman push ${localImage} ${remoteImage}`.quiet(isQuiet);
             await saveDeployHash();
         } catch (err) {
             console.error('Unable to deploy to fly');
@@ -93,16 +108,34 @@ export async function build() {
     } else {
         console.log("No changes detected, skipping deploy.");
     }
+
+    const needsMachine = await missingMachineId();
+    if (needsMachine) {
+        const configFile = await flyConfigFile()
+        try {
+            const machineCreateResponse = await $`fly machine create ${remoteImage} -c ${configFile}`.quiet(isQuiet).text();
+            const machineId = machineCreateResponse.match(/Machine ID: (?<id>.+)/)?.groups?.id!
+            await writeState({ machineId });
+        } catch (err) {
+            console.error('Unable to deploy to fly');
+            process.exit(2);
+        }
+    }
 }
 
 export async function run(filepath: string, args?: string[]) {
     console.log(`Running function... `);
+    const { machineId } = await readState();
+    if (await missingMachineId()) {
+        console.error('Missing a machine on fly. Please build first.');
+        process.exit(2);
+    }
+
     const configFile = await flyConfigFile()
-    const { app } = await flyConfig();
-    const imageName = `${app}:tasks`
-    setCurrentProcess(Bun.spawn(["fly", "logs", "-c", configFile], { stdout: "inherit", stderr: "inherit" }));
+    const { remoteImage } = await appImage();
+    setCurrentProcess(Bun.spawn(["fly", "logs", "-c", configFile, "--machine", machineId!], { stdout: "inherit", stderr: "inherit" }));
     try {
-        await $`fly machine run registry.fly.io/${imageName} --rm --entrypoint="bun run ${filepath} ${args}" -c ${configFile}`.quiet(isQuiet);
+        await $`fly machine update ${machineId} -y --image ${remoteImage} --entrypoint="bun run ${filepath} ${args}"`.quiet(isQuiet);
     } catch (err) {
         console.error('Unable to run on fly');
         process.exit(2);
