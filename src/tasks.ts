@@ -135,7 +135,7 @@ export async function run(filepath: string, args?: string[]) {
     const { remoteImage } = await appImage();
     setCurrentProcess(Bun.spawn(["fly", "logs", "-c", configFile, "--machine", machineId!], { stdout: "inherit", stderr: "inherit" }));
     try {
-        await $`fly machine update ${machineId} -y --image ${remoteImage} --entrypoint="bun run ${filepath} ${args}"`.quiet(isQuiet);
+        await $`fly machine update ${machineId} -y --image ${remoteImage} --entrypoint="bun run ${filepath} ${args}" --restart no`.quiet(isQuiet);
     } catch (err) {
         console.error('Unable to run on fly');
         process.exit(2);
