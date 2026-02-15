@@ -8,6 +8,9 @@ export function setupSigIntHandler() {
             process.exit();
         }
     });
+    process.on("exit", () => {
+        if (currentProcess) currentProcess.kill();
+    })
 }
 
 export function setCurrentProcess(proc: Bun.Subprocess | undefined) {
