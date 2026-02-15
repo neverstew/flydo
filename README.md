@@ -10,16 +10,18 @@ This only works right now with:
 - [podman](https://podman.io)
 - [flyctl](https://fly.io/docs/flyctl/)
 
-## Building the binary
+## Downloading the CLI
 
-The main output of flydo is the `flydo` CLI.
+The `flydo` binary is available in the releases tab of this repo for direct downloads.
 
-You can build this with `bun compile`.
-
-Place the executable on your path somewhere e.g. in a fish shell
+Place the file on your path somewhere e.g. in a fish shell
 ```fish
 add_to_path dist/flydo
 ```
+
+### Building the binary
+
+Alternatively, you can build the CLI with `bun compile`.
 
 ## Getting Started
 
