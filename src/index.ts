@@ -46,7 +46,7 @@ setQuiet(!values.debug);
 
 const [, , command, ...rest] = positionals;
 
-const gitRoot = await changeToProjectRoot();
+await changeToProjectRoot();
 const flyConfigFile = await validateFlyConfiguration();
 process.chdir(originalCwd);
 

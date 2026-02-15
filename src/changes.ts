@@ -3,7 +3,8 @@ import { STATE_FILE, readState, writeState } from "./state";
 async function computeDirHash(): Promise<string> {
     const hasher = new Bun.CryptoHasher("sha256");
     const files: string[] = [];
-    for await (const file of new Bun.Glob("**/*").scan({ dot: true, onlyFiles: true })) {
+    const { workdir } = await readState();
+    for await (const file of new Bun.Glob(`${workdir}/**/*`).scan({ dot: true, onlyFiles: true })) {
         if (file.startsWith(".git/") || file.startsWith("node_modules/") || file === STATE_FILE) continue;
         files.push(file);
     }
