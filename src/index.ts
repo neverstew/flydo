@@ -1,7 +1,7 @@
 import { parseArgs } from "util";
 import { resolve, relative } from "path";
 import { changeToProjectRoot } from "./changeToProjectRoot";
-import { build, init, login, logout, run, validateFlyConfiguration } from "./tasks";
+import { build, init, login, logout, run, shell, validateFlyConfiguration } from "./tasks";
 import { setupSigIntHandler } from "./interruptions";
 import { setQuiet } from "./quiet";
 import { readState } from "./state";
@@ -27,6 +27,7 @@ Commands:
   login                    Issue a deploy token
   logout                   Revoke all deploy tokens
   run <file> [args...]     Run a particular file remotely
+  shell                    Shell into a throwaway machine to check out the current image
 
 Options:
   --help, -h               Show this help message
@@ -80,6 +81,10 @@ switch (command) {
         const { workdir } = await readState();
         const relFilePath = relative(workdir!, resolve(originalCwd, filename));
         await run(relFilePath, args);
+        break;
+    }
+    case "shell": {
+        await shell();
         break;
     }
     default:

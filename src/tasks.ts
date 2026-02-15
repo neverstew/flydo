@@ -143,3 +143,9 @@ export async function run(filepath: string, args?: string[]) {
     await getCurrentProcess()!.exited;
     setCurrentProcess(undefined);
 }
+
+export async function shell() {
+    const { remoteImage } = await appImage();
+    const configFile = await flyConfigFile()
+    await $`fly machine run ${remoteImage} --shell --command "sh" -c ${configFile}`
+}
